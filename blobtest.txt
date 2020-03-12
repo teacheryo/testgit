@@ -1,0 +1,157 @@
+﻿1. 테이블 생성
+CREATE TABLE tbl_files(
+id NUMBER(6) PRIMARY KEY,
+fileBytes BLOB NOT NULL
+);
+
+2. 도메인 생성
+public class FilesVO {
+ private int id;
+ private byte[] fileBytes;
+
+ public FilesVO() {
+  // TODO Auto-generated constructor stub
+ }
+
+ public int getId() {
+  return id;
+ }
+
+ public void setId(int id) {
+  this.id = id;
+ }
+
+ public byte[] getFileBytes() {
+  return fileBytes;
+ }
+
+ public void setFileBytes(byte[] fileBytes) {
+  this.fileBytes = fileBytes;
+ }
+}
+
+3. DAO 인터페이스 생성
+public interface UploadDAO {
+ public void upload(FilesVO vo);
+ public Map<String, Object> imgsrc(int id);
+}
+
+4. mapper 생성
+<mapper namespace="com.naver.upload">
+
+ <resultMap type="java.util.Map" id="result">
+  <result column="fileBytes" property="fileBytes" jdbcType="BLOB" javaType="[B" />
+ </resultMap>
+
+ <select id="imgsrc" resultMap="result" parameterType="java.util.Map">
+  SELECT fileBytes FROM tbl_files where id = #{id}
+ </select>
+
+ <insert id="upload" parameterType="com.naver.dto.FilesVO">
+  insert into tbl_files (id, fileBytes) values ((select NVL2(max(id), max(id)+1, 1) from tbl_files), #{fileBytes})
+  <selectKey keyProperty="id" resultType="Integer" order="AFTER"> 
+   select max(id) from tbl_files
+  </selectKey>
+ </insert>
+</mapper>
+
+5. DAOImpl 생성
+@Repository
+public class UploadDAOImpl implements UploadDAO {
+ @Inject
+ private SqlSession session;
+
+ private final String NS = "com.naver.upload";
+
+ @Override
+ public void upload(FilesVO vo) {
+  session.insert(NS + ".upload", vo);
+ }
+
+ @Override
+ public Map<String, Object> imgsrc(int id) {
+  // TODO Auto-generated method stub
+  return session.selectOne(NS + ".imgsrc", id);
+ }
+}
+
+6. Service 생성
+public interface UploadService {
+ public FilesVO upload(FilesVO vo);
+ public byte[] imgsrc(int id);
+}
+
+7. ServiceImpl 생성
+@Service
+public class UploadServiceImpl implements UploadService {
+ @Inject
+ private UploadDAO dao;
+
+ @Override
+ public FilesVO upload(FilesVO vo) {
+  // TODO Auto-generated method stub
+  dao.upload(vo);
+
+  return vo;
+ }
+
+ @Override
+ public byte[] imgsrc(int id) {
+  Map<String, Object> map = dao.imgsrc(id);
+
+  return (byte[]) map.get("fileBytes");
+ }
+}
+
+8. Controller 생성
+     @Autowired
+ private UploadService service;
+ 
+ @RequestMapping(value="/upload", method = RequestMethod.GET)
+ public String upload() {
+     return "upload";
+ }
+  
+ @RequestMapping(value="/upload", method = RequestMethod.POST)
+ public String upload(MultipartHttpServletRequest request) {
+  FilesVO vo = new FilesVO();
+     try {
+      MultipartFile file = request.getFile("file");
+      
+      vo.setFileBytes(file.getBytes());
+         vo = service.upload(vo);   
+     } catch (Exception e) {
+         e.printStackTrace();
+     }
+     return "redirect:/show?id="+vo.getId();
+ }
+
+ @RequestMapping(value="/show")
+ public void view(@ModelAttribute("id") int id) {
+ }   
+
+ @RequestMapping(value="/imgsrc")
+ public ResponseEntity<byte[]> getByteImage(int id) {
+     byte[] fileBytes = service.imgsrc(id);
+        
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.IMAGE_PNG);
+        return new ResponseEntity<byte[]>(fileBytes, headers, HttpStatus.OK);
+ }
+
+9. upload.jsp 생성
+<body>
+ <form action="/upload" enctype="multipart/form-data" method="post">
+     <input type="file" name="file" />
+     <input type="submit" value="업로드"/>
+ </form>
+</body>
+
+10. show.jsp 생성
+<body>
+ <div class="container">
+  <div class="row">${id}<br>
+   <img alt="" src="/imgsrc?id=${id}">
+  </div>
+ </div>
+</body>

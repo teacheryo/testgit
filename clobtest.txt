@@ -1,0 +1,113 @@
+﻿1. 테이블 생성
+CREATE TABLE clobtest(
+<b>review CLOB</b>
+);
+
+2. DAO 인터페이스 생성
+public interface ClobTestDAO {
+ public Map<String, Object> clobview();
+}
+
+3. mapper 생성
+<mapper namespace="com.naver.clobtest">
+<resultMap type="java.util.Map" id="result2">
+  <result column="review" property="review" jdbcType="CLOB" javaType="java.lang.String" />
+ </resultMap>
+
+ <select id="clobview" resultMap="result2" parameterType="java.util.Map">
+  SELECT review FROM clobtest
+ </select>
+
+ <insert id="clobtest">
+  insert into clobtest values (#{review})
+ </insert>
+</mapper>
+
+5. DAOImpl 생성
+@Repository
+public class UploadDAOImpl implements UploadDAO {
+ @Inject
+ private SqlSession session;
+
+ private final String NS = "com.naver.clobtest";
+
+ @Override
+ public void clobtest(String review) {
+  session.insert(NS+".clobtest", review);
+  
+ }
+
+ @Override
+ public Map<String, Object> clobview() {
+  // TODO Auto-generated method stub
+  return session.selectOne(NS+".clobview");
+ }
+
+}
+
+6. Service 생성
+public interface ClobTestService {
+ public Map<String, Object> clobview();
+}
+
+7. ServiceImpl 생성
+@Service
+public class ClobTestServiceImpl implements ClobTestService {
+ @Inject
+ private ClobTestDAO dao;
+
+ @Override
+ public void clobtest(String review) {
+  dao.clobtest(review);
+  
+ }
+
+ @Override
+ public Map<String, Object> clobview() {
+  // TODO Auto-generated method stub
+  return dao.clobview();
+ }
+}
+
+8. Controller 생성
+     @Autowired
+ private ClobTestService service;
+ 
+ @RequestMapping(value="/clobtest", method = RequestMethod.GET)
+ public String clobtest() {
+     return "clobtest";
+ }
+ 
+ @RequestMapping(value="/clobtest", method = RequestMethod.POST)
+ public String clobtest(String review) {
+      service.clobtest(review);
+     return "redirect:/clobview";
+ }
+ 
+ @RequestMapping(value="/clobview", method = RequestMethod.GET)
+ public String clobview(Model model) {
+      Map<String, Object> map = service.clobview();
+      model.addAttribute("review", map.get("review"));
+     return "clobview";
+ }
+
+9. clobtest.jsp 생성
+<body>
+ <div class="container">  
+        <div class="row">   
+              <form action="clobtest" method="post">    
+                 <textarea class="form-control" rows="5" name="review"></textarea>    
+                <input type="submit" class="btn btn-primary" value="크랍데이터저장">   
+             </form>  
+       </div> 
+ </div>
+</body>
+
+10. clobview.jsp 생성
+<body>
+      <div class="container">
+           <div class="row">
+               ${review }
+          </div>
+     </div>
+</body>
